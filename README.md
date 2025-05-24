@@ -109,7 +109,6 @@ sudo apt install -y crudini curl coreutils bash git
         bitcoind.rpcuser=USUARIO_RPC_PRINCIPAL
         bitcoind.rpcpass=SENHA_RPC_PRINCIPAL
         ```
-    *   **Edite `config/lnd.backup.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin de backup**, usando o mesmo formato (local ou remoto) conforme necessário:so.
 
 7.  **Instale os Serviços Systemd:**
     *   **Crie o arquivo do Serviço:**
