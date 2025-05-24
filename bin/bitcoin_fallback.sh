@@ -144,7 +144,6 @@ switch_state() {
     if systemctl restart --ignore-dependencies lnd.service; then
         log_info "LND reiniciado com sucesso usando configuração '$new_state'."
         notify "✅ LND Fallback: LND reiniciado com sucesso."
-        exit 0 # Sai após a troca bem-sucedida
     else
         log_error "Falha ao reiniciar lnd.service! Verifique os logs do LND e do systemd."
         notify "🚨 ERRO Fallback: Falha ao reiniciar LND após trocar para '$new_state'!"
