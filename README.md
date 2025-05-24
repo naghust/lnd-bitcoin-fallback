@@ -57,7 +57,7 @@ sudo apt install -y crudini curl coreutils bash git
 1.  **Clone o Repositório:**
     ```bash
     git clone https://github.com/naghust/lnd-bitcoin-fallback
-    cd bitcoin-fallback
+    cd lnd-bitcoin-fallback
     ```
 
 2.  **Torne os Scripts Executáveis:**
