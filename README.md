@@ -123,7 +123,7 @@ sudo apt install -y crudini curl coreutils bash git
 
         [Service]
         Type=oneshot
-        ExecStart=/home/admin/lnd-bitcoin_fallback/bin/bitcoin_fallback.sh
+        ExecStart=/home/admin/lnd-bitcoin-fallback/bin/bitcoin_fallback.sh
         ```
     *   **Após colar o conteúdo no nano, pressione Ctrl + X, depois Y para confirmar a gravação, e Enter para salvar e sair.**
     *   **Crie o arquivo do serviço:**
