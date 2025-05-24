@@ -7,8 +7,8 @@ O teste de conexão com o node Bitcoin é feito via `curl`, **não sendo necess�
 ## Funcionalidades
 
 *   **Verificação Periódica:** Utiliza um timer systemd para verificar a conectividade com o node Bitcoin principal a cada minuto (configurável).
-*   **Fallback Automático:** Se o node principal falhar, o script atualiza a configuração do LND (`lnd.conf`) para usar as configurações do node de backup (`config/lnd.backup.conf`) e reinicia os serviços necessários.
-*   **Retorno Automático:** Quando a conexão com o node principal é restaurada, o script reverte a configuração do LND para usar o node principal (`config/lnd.principal.conf`) e reinicia os serviços.
+*   **Fallback Automático:** Se o node principal falhar, o script atualiza a configuração do LND (`lnd.conf`) para usar as configurações do node de backup (`config/lnd.backup.conf`) e reinicia o LND e outros serviços necessários, se estiverem rodando (lndg, lndg-controller, thunderhub e bos-telegram).
+*   **Retorno Automático:** Quando a conexão com o node principal é restaurada, o script reverte a configuração do LND para usar o node principal (`config/lnd.principal.conf`) e reinicia o LND e outros serviços necessários, se estiverem rodando (lndg, lndg-controller, thunderhub e bos-telegram).
 *   **Gerenciamento de Estado:** Mantém o estado atual (usando node "principal" ou "backup") em um arquivo (`config/.fallback_state`) para evitar trocas desnecessárias.
 *   **Notificações:** Envia notificações via Telegram sobre as trocas de estado e possíveis erros (configurável).
 *   **Logging:** Registra as ações e erros em um arquivo de log (`lnd_fallback.log` por padrão, dentro do diretório LND definido em `config.ini`).
@@ -16,20 +16,18 @@ O teste de conexão com o node Bitcoin é feito via `curl`, **não sendo necess�
 ## Estrutura do Projeto
 
 ```
-lnd-bitcoin-fallback/
+bitcoin-fallback/
 ├── bin/                  # Scripts executáveis
 │   ├── bitcoin_fallback.sh
 │   └── notify.sh
 ├── config/               # Arquivos de configuração
 │   ├── config.ini.example       # Exemplo de configuração principal
 │   # --- Arquivos a serem criados/copiados pelo usuário --- #
-│   ├── config.ini             # Sua configuração principal (NÃO VERSIONAR)
-│   ├── lnd.principal.conf     # Sua config LND p/ node principal (NÃO VERSIONAR)
-│   ├── lnd.backup.conf      # Sua config LND p/ node backup (NÃO VERSIONAR)
-│   └── .fallback_state        # Arquivo de estado (criado/gerenciado pelo script)
-├── systemd/              # Arquivos de unidade Systemd
-│   ├── bitcoin-fallback-check.service
-│   └── bitcoin-fallback-check.timer
+│   ├── config.ini             # Sua configuração principal
+│   ├── lnd.principal.conf     # Sua config LND p/ node principal
+│   ├── lnd.backup.conf      # Sua config LND p/ node backup
+│   # --- Arquivos a serem criados/manipulados pelo script ---
+│   └── .fallback_state        # Arquivo de estado
 ├── .gitignore            # Arquivos a serem ignorados pelo Git
 ├── LICENSE               # Licença do projeto (ex: MIT)
 └── README.md             # Este arquivo
@@ -42,6 +40,7 @@ lnd-bitcoin-fallback/
 *   **Utilitários Essenciais:** `coreutils` (geralmente pré-instalado, fornece `dirname`, `readlink`, `cp`, `echo`, `mkdir`, `tee`, `grep`).
 *   **`crudini`:** Utilitário para ler/modificar arquivos `.ini`.
 *   **`curl`:** Ferramenta para transferir dados com URLs (usada para teste de conexão RPC e notificações Telegram).
+*   **`git`:** Utilitário de controle de versão distribuído, necessário para clonar este repositório e, opcionalmente, para versionar alterações locais.
 *   **Acesso `sudo`:** Necessário para instalar dependências e os serviços systemd.
 *   **Nodes Bitcoin:** Dois nodes Bitcoin Core (principal e backup) configurados e acessíveis via RPC pela máquina onde o script rodará.
 *   **Node LND:** Um node LND instalado e configurado, com um arquivo `lnd.conf` funcional.
@@ -50,7 +49,7 @@ lnd-bitcoin-fallback/
 
 ```bash
 sudo apt update
-sudo apt install -y crudini curl coreutils bash
+sudo apt install -y crudini curl coreutils bash git
 ```
 
 ## Instalação e Configuração
@@ -58,15 +57,20 @@ sudo apt install -y crudini curl coreutils bash
 1.  **Clone o Repositório:**
     ```bash
     git clone https://github.com/naghust/lnd-bitcoin-fallback
-    cd lnd-bitcoin-fallback
+    cd bitcoin-fallback
     ```
 
-2.  **Copie o Exemplo de Configuração Principal:**
+2.  **Torne os Scripts Executáveis:**
+    ```bash
+    chmod +x bin/bitcoin_fallback.sh bin/notify.sh
+    ```
+
+3.  **Copie o Exemplo de Configuração Principal:**
     ```bash
     cp config/config.ini.example config/config.ini
     ```
 
-3.  **Edite `config/config.ini`:**
+4.  **Edite `config/config.ini`:**
     *   Ajuste o `LND_DIR` na seção `[General]` para o diretório de dados do seu LND (onde seu `lnd.conf` atual reside).
     *   Na seção `[bitcoin_fallback]`, configure os detalhes de conexão para o seu **node Bitcoin principal**:
         *   `BITCOIN_RPC_HOST`: Defina como `127.0.0.1` se o node principal for local, ou o IP/hostname se for remoto.
@@ -74,17 +78,38 @@ sudo apt install -y crudini curl coreutils bash
         *   `BITCOIN_RPC_USER`: Defina o usuário RPC do node principal.
         *   `BITCOIN_RPC_PASS`: Defina a senha RPC do node principal.
     *   Se desejar notificações Telegram, configure a seção `[telegram]` com `enabled = true`, seu `token` e `chat_id`.
-    *   **IMPORTANTE:** Defina permissões restritas para este arquivo: `chmod 600 config/config.ini`
 
-4.  **Crie os Arquivos de Configuração do LND para Fallback:**
+5.  **CDefina permissões restritas para o arquivo config.ini:**
+    ```bash
+    sudo chmod 600 config/config.ini
+    ```
+
+6.  **Crie os Arquivos de Configuração do LND para Fallback:**
     *   Vá até o diretório de configuração do seu LND (o `LND_DIR` que você definiu no `config.ini`).
-    *   **Copie seu `lnd.conf` atual** duas vezes, dentro do diretório `config/` do projeto `bitcoin-fallback`:
+    *   **Copie seu `lnd.conf` atual** duas vezes, dentro do diretório `config/` do projeto `lnd-bitcoin-fallback`:
         ```bash
         # Exemplo: Se LND_DIR=/data/lnd e o projeto está em /home/admin/lnd-bitcoin-fallback
         cp /data/lnd/lnd.conf /home/admin/lnd-bitcoin-fallback/config/lnd.principal.conf
         cp /data/lnd/lnd.conf /home/admin/lnd-bitcoin-fallback/config/lnd.backup.conf
         ```
-    *   **Edite `config/lnd.principal.conf` e `config/lnd.backup.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin principal**. Use o formato apropriado (local ou remoto) para as linhas relevantes:
+    *   **Edite `config/lnd.principal.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin principal**. Use o formato apropriado (local ou remoto) para as linhas relevantes:
+        ```ini
+        [Bitcoind]
+        # Para node LOCAL (descomente as 3 linhas abaixo e comente as 3 linhas de 'Para node REMOTO'):
+        # bitcoind.rpchost=127.0.0.1:8332 
+        # bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
+        # bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
+        
+        # Para node REMOTO  (descomente as 3 linhas abaixo e comente as 3 linhas de 'Para node LOCAL'):
+        bitcoind.rpchost=IP_OU_HOSTNAME_DO_NODE_PRINCIPAL:PORTA_RPC_PRINCIPAL
+        bitcoind.zmqpubrawblock=tcp://IP_OU_HOSTNAME_DO_NODE_PRINCIPAL:PORTA_ZMQ_BLOCK
+        bitcoind.zmqpubrawtx=tcp://IP_OU_HOSTNAME_DO_NODE_PRINCIPAL:PORTA_ZMQ_TX
+        
+        # Credenciais (sempre necessárias):
+        bitcoind.rpcuser=USUARIO_RPC_PRINCIPAL
+        bitcoind.rpcpass=SENHA_RPC_PRINCIPAL
+        ```
+    *   **Edite `config/lnd.backup.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin de backup**, usando o mesmo formato (local ou remoto) conforme necessário:
         ```ini
         [Bitcoind]
         bitcoind.active=true
@@ -93,22 +118,47 @@ sudo apt install -y crudini curl coreutils bash
         # bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
         # bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
         # Para node REMOTO:
-        bitcoind.rpchost=IP_OU_HOSTNAME_DO_NODE_PRINCIPAL:PORTA_RPC_PRINCIPAL
-        bitcoind.zmqpubrawblock=tcp://IP_OU_HOSTNAME_DO_NODE_PRINCIPAL:PORTA_ZMQ_BLOCK
-        bitcoind.zmqpubrawtx=tcp://IP_OU_HOSTNAME_DO_NODE_PRINCIPAL:PORTA_ZMQ_TX
+        bitcoind.rpchost=IP_OU_HOSTNAME_DO_NODE_BACKUP:PORTA_RPC_BACKUP
+        bitcoind.zmqpubrawblock=tcp://IP_OU_HOSTNAME_DO_NODE_BACKUP:PORTA_ZMQ_BLOCK
+        bitcoind.zmqpubrawtx=tcp://IP_OU_HOSTNAME_DO_NODE_BACKUP:PORTA_ZMQ_TX
         # Credenciais (sempre necessárias):
-        bitcoind.rpcuser=USUARIO_RPC_PRINCIPAL
-        bitcoind.rpcpass=SENHA_RPC_PRINCIPAL
+        bitcoind.rpcuser=USUARIO_RPC_BACKUP
+        bitcoind.rpcpass=SENHA_RPC_BACKUP
         ```
-    *   **Edite `config/lnd.backup.conf`:** Modifique **APENAS** a seç
     *   **IMPORTANTE:** Não versione esses arquivos (`lnd.principal.conf`, `lnd.backup.conf`) no Git, pois eles contêm suas configurações específicas e potencialmente credenciais. O `.gitignore` já está configurado para isso.
 
-5.  **Instale os Serviços Systemd:**
-    *   **Ajuste o Caminho (se necessário):** O arquivo `systemd/bitcoin-fallback-check.service` assume que o projeto está em `/home/admin/lnd-bitcoin_fallback`. Se você clonou em outro local, **edite a linha `ExecStart=`** no arquivo `.service` para apontar para o caminho correto do script `bin/bitcoin_fallback.sh`.
-    *   **Copie os Arquivos:**
+7.  **Instale os Serviços Systemd:**
+    *   **Ajuste o Caminho (se necessário):** O arquivo `systemd/bitcoin-fallback-check.service` assume que o projeto está em `/home/admin/lnd-bitcoin_fallback_project`. Se você clonou em outro local, **edite a linha `ExecStart=`** no arquivo `.service` para apontar para o caminho correto do script `bin/bitcoin_fallback.sh`.
+    *   **Crie o arquivo do serviço:**
         ```bash
-        sudo cp systemd/bitcoin-fallback-check.service /etc/systemd/system/
-        sudo cp systemd/bitcoin-fallback-check.timer /etc/systemd/system/
+        sudo nano /etc/systemd/system/bitcoin-fallback-check.service
+        ```
+    *   **Copie o texto a seguir e cole no arquivo (salve e saia do arquivo - Ctrl+X, y, Enter):**
+        ```bash
+        [Unit]
+        Description=Bitcoin Fallback Check
+        After=bitcoind.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/home/admin/lnd-bitcoin_fallback/bin/bitcoin_fallback.sh
+        ```    
+    *   **Crie o arquivo do timer:**
+        ```bash
+        sudo nano /etc/systemd/system/bitcoin-fallback-check.timer
+        ```
+    *   **Copie o texto a seguir e cole no arquivo (salve e saia do arquivo - Ctrl+X, y, Enter):**
+        ```bash
+        [Unit]
+        Description=Run Bitcoin Fallback Check every 1 minute
+
+        [Timer]
+        OnBootSec=1min
+        OnUnitActiveSec=1min
+        AccuracySec=1s
+
+        [Install]
+        WantedBy=timers.target
         ```
     *   **Recarregue o Systemd:**
         ```bash
@@ -119,7 +169,7 @@ sudo apt install -y crudini curl coreutils bash
         sudo systemctl enable --now bitcoin-fallback-check.timer
         ```
 
-6.  **Verifique o Status:**
+8.  **Verifique o Status:**
     *   Verifique se o timer está ativo:
         ```bash
         systemctl status bitcoin-fallback-check.timer
@@ -144,16 +194,16 @@ sudo apt install -y crudini curl coreutils bash
         *   Copia `config/lnd.principal.conf` para o `lnd.conf` ativo (localizado em `LND_DIR`).
         *   Atualiza `config/.fallback_state` para `principal`.
         *   Envia notificação (se habilitado).
-        *   Reinicia serviços dependentes (lndg, etc., listados no script).
         *   Reinicia o serviço `lnd.service`.
+        *   Reinicia serviços dependentes se estiverem rodando (lndg, lndg-controller, thunderhub e bos-telegram).
     *   Se o estado atual já for `principal`, nenhuma ação é tomada.
 6.  **Se a conexão RPC via `curl` falhar (timeout, erro de conexão/auth, resposta inválida):**
     *   Se o estado atual for `principal`, ele inicia a troca para `backup`:
         *   Copia `config/lnd.backup.conf` para o `lnd.conf` ativo.
         *   Atualiza `config/.fallback_state` para `backup`.
         *   Envia notificação (se habilitado).
-        *   Reinicia serviços dependentes.
         *   Reinicia o serviço `lnd.service`.
+        *   Reinicia serviços dependentes se estiverem rodando (lndg, lndg-controller, thunderhub e bos-telegram).
     *   Se o estado atual já for `backup`, nenhuma ação é tomada.
 
 ## Licença
@@ -163,3 +213,4 @@ Este projeto é distribuído sob a licença MIT. Veja o arquivo `LICENSE` para m
 ## Contribuições
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
+

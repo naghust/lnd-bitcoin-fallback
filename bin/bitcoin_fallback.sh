@@ -27,7 +27,7 @@ PROJECT_ROOT="$(dirname "$BIN_DIR")"
 CONFIG_DIR="$PROJECT_ROOT/config"
 
 # --- Funções Auxiliares ---
-TIMESTAMP() { date 	'+%Y-%m-%d %H:%M:%S'; }
+TIMESTAMP() { date 			'+%Y-%m-%d %H:%M:%S'; }
 log_error() { echo "[$(TIMESTAMP)] ERRO: $*" | tee -a "$LOG_FILE" >&2; }
 log_info() { echo "[$(TIMESTAMP)] INFO: $*" | tee -a "$LOG_FILE"; }
 
@@ -35,7 +35,7 @@ log_info() { echo "[$(TIMESTAMP)] INFO: $*" | tee -a "$LOG_FILE"; }
 CONFIG_FILE="$CONFIG_DIR/config.ini"
 if [ ! -f "$CONFIG_FILE" ]; then
   # Não podemos logar no arquivo de log padrão ainda
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERRO: Arquivo de configuração '$CONFIG_FILE' não encontrado." >&2
+  echo "[$(date 			'+%Y-%m-%d %H:%M:%S')] ERRO: Arquivo de configuração '$CONFIG_FILE' não encontrado." >&2
   exit 1
 fi
 
@@ -84,10 +84,10 @@ log_info "Estado atual lido: $CURRENT_STATE"
 check_bitcoin_connection() {
     local rpc_url="http://$BITCOIN_RPC_HOST:$BITCOIN_RPC_PORT/"
     local rpc_user_pass="$BITCOIN_RPC_USER:$BITCOIN_RPC_PASS"
-    local json_payload='{"jsonrpc": "1.0", "id":"fallback_check", "method": "getblockchaininfo", "params": [] }'
-
+    local json_payload=			'{"jsonrpc": "1.0", "id":"fallback_check", "method": "getblockchaininfo", "params": [] }'
+    
     log_info "Testando conexão com o Bitcoin Core principal em $rpc_url via curl..."
-
+    
     # Usa curl para fazer a chamada RPC com timeout
     # Verifica o código de saída do curl E se a resposta contém "result" (indicativo de sucesso RPC)
     # O timeout é aplicado à conexão (--connect-timeout) e ao tempo total da operação (-m)
@@ -141,17 +141,22 @@ switch_state() {
     # Notifica a troca
     notify "🔄 LND Fallback: Trocando para node *$new_state*."
 
-    # Reinicia serviços dependentes (se existirem e estiverem ativos)
-    # Adicionar verificações 'systemctl is-active --quiet service || true' para evitar erros se o serviço não existir/estiver inativo
-    log_info "Reiniciando serviços dependentes (lndg, lndg-controller, thunderhub, bos-telegram)..."
-    # O comando abaixo tentará reiniciar todos; falhas individuais serão logadas pelo systemd
-    # Para maior robustez, reiniciar um por um com checagem de status seria ideal, mas mais complexo.
-    if systemctl restart lndg lndg-controller thunderhub bos-telegram; then
-        log_info "Comando de reinício para serviços dependentes enviado."
-    else
-        log_error "Falha ao enviar comando de reinício para um ou mais serviços dependentes. Verifique os logs do systemd para detalhes."
-        # Não aborta, mas loga o erro.
-    fi
+    # Reinicia serviços dependentes individualmente, se existirem e estiverem ativos
+    log_info "Verificando e reiniciando serviços dependentes..."
+    local services_to_check=("lndg" "lndg-controller" "thunderhub" "bos-telegram")
+    for service in "${services_to_check[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            log_info "Serviço '$service' está ativo. Tentando reiniciar..."
+            if systemctl restart "$service"; then
+                log_info "Comando de reinício para '$service' enviado com sucesso."
+            else
+                log_error "Falha ao enviar comando de reinício para '$service'. Verifique os logs do systemd."
+                # Não aborta, mas loga o erro.
+            fi
+        else
+            log_info "Serviço '$service' não encontrado ou não está ativo. Pulando reinício."
+        fi
+    done
 
     sleep 5 # Aguarda um pouco antes de reiniciar o LND
 
