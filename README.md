@@ -117,7 +117,7 @@ sudo apt install -y crudini curl coreutils bash git
         sudo nano /etc/systemd/system/bitcoin-fallback-check.service
         ```
     *   **Copie o texto a seguir e cole no arquivo (salve e saia do arquivo - Ctrl+X, y, Enter):**
-        ```bash
+        ```ini
         [Unit]
         Description=Bitcoin Fallback Check
         After=bitcoind.service
@@ -132,7 +132,7 @@ sudo apt install -y crudini curl coreutils bash git
         sudo nano /etc/systemd/system/bitcoin-fallback-check.timer
         ```
     *   **Copie o texto a seguir e cole no arquivo (salve e saia do arquivo - Ctrl+X, y, Enter):**
-        ```bash
+        ```ini
         [Unit]
         Description=Run Bitcoin Fallback Check every 1 minute
 
