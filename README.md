@@ -1,6 +1,6 @@
-# Bitcoin/LND Fallback Script
+# LND - Bitcoin Node Fallback Script
 
-Este projeto fornece um script Bash para monitorar a conexão com um node Bitcoin Core principal e, em caso de falha, automaticamente fazer fallback para um node Bitcoin Core de backup, ajustando a configuração do LND (Lightning Network Daemon) para apontar para o node ativo.
+Este projeto fornece um script Bash para monitorar a conexão com um node Bitcoin Core principal e, em caso de falha, automaticamente fazer fallback para um node Bitcoin Core backup, ajustando a configuração do LND (Lightning Network Daemon) para apontar para o node ativo.
 
 O teste de conexão com o node Bitcoin é feito via `curl`, **não sendo necessária a instalação do `bitcoin-cli`** na máquina onde o script é executado.
 

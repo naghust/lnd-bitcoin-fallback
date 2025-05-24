@@ -78,15 +78,12 @@ CURRENT_STATE="principal" # Assume principal se o arquivo não existir
 if [ -f "$STATE_FILE" ]; then
     CURRENT_STATE=$(<"$STATE_FILE")
 fi
-log_info "Estado atual lido: $CURRENT_STATE"
 
 # 2) Função para verificar a conexão com o Bitcoin Core Principal via curl
 check_bitcoin_connection() {
     local rpc_url="http://$BITCOIN_RPC_HOST:$BITCOIN_RPC_PORT/"
     local rpc_user_pass="$BITCOIN_RPC_USER:$BITCOIN_RPC_PASS"
     local json_payload='{"jsonrpc": "1.0", "id":"fallback_check", "method": "getblockchaininfo", "params": [] }'
-
-    log_info "Testando conexão com o Bitcoin Core principal em $rpc_url via curl..."
 
     # Usa curl para fazer a chamada RPC com timeout
     # Verifica o código de saída do curl E se a resposta contém "result" (indicativo de sucesso RPC)
@@ -100,7 +97,6 @@ check_bitcoin_connection() {
 
     # Verifica se a resposta contém um campo "result"
     if echo "$response" | grep -q '"result"'; then
-        log_info "Conexão com Bitcoin Core principal bem-sucedida."
         return 0
     else
         log_error "Falha ao conectar/comunicar com Bitcoin Core principal via curl (timeout, erro de conexão/auth ou resposta RPC inválida)."
@@ -118,7 +114,7 @@ switch_state() {
     log_info "Iniciando troca de estado de '$old_state' para '$new_state'."
 
     # Notifica a troca
-    notify "🔄 LND Fallback: Iniciando a troca para do node bitcoin $old_state para o $new_state."
+    notify "🔄 LND Fallback: Iniciando a troca do node bitcoin $old_state para o $new_state."
 
     # Verifica se o arquivo de configuração de origem existe
     if [ ! -f "$lnd_conf_source" ]; then
@@ -181,7 +177,7 @@ switch_state() {
     if [ ${#restarted_services[@]} -gt 0 ]; then
         notify "✅ LND Fallback: Serviços reiniciados: ${restarted_services[*]}"
     else
-        notify ⚠️ LND Fallback: Nenhum serviço foi reiniciado (não estavam ativos ou não encontrados)."
+        notify "⚠️ LND Fallback: Nenhum serviço foi reiniciado (não estavam ativos ou não encontrados)."
     fi
 }
 
@@ -191,18 +187,12 @@ if check_bitcoin_connection; then
     if [ "$CURRENT_STATE" != "principal" ]; then
         log_info "Conexão com node principal restaurada. Voltando para 'principal'."
         switch_state "principal"
-    else
-        log_info "Conexão com node principal OK. Estado já é 'principal'. Nenhuma ação necessária."
     fi
 else
     # Conexão Falhou: Verifica se precisa ir para o backup
     if [ "$CURRENT_STATE" != "backup" ]; then
         log_info "Conexão com node principal falhou. Trocando para 'backup'."
         switch_state "backup"
-    else
-        log_info "Conexão com node principal falhou. Estado já é 'backup'. Nenhuma ação necessária."
     fi
 fi
-
-log_info "Script concluído sem mudança de estado."
 exit 0
