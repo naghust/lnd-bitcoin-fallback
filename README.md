@@ -79,7 +79,7 @@ sudo apt install -y crudini curl coreutils bash git
         *   `BITCOIN_RPC_PASS`: Defina a senha RPC do node principal.
     *   Se desejar notificações Telegram, configure a seção `[telegram]` com `enabled = true`, seu `token` e `chat_id`.
 
-5.  **CDefina permissões restritas para o arquivo config.ini:**
+5.  **Defina permissões restritas para o arquivo config.ini:**
     ```bash
     sudo chmod 600 config/config.ini
     ```
@@ -92,7 +92,7 @@ sudo apt install -y crudini curl coreutils bash git
         cp /data/lnd/lnd.conf /home/admin/lnd-bitcoin-fallback/config/lnd.principal.conf
         cp /data/lnd/lnd.conf /home/admin/lnd-bitcoin-fallback/config/lnd.backup.conf
         ```
-    *   **Edite `config/lnd.principal.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin principal**. Use o formato apropriado (local ou remoto) para as linhas relevantes:
+    *   **Edite `config/lnd.principal.conf` e `config/lnd.backup.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para cada um dos nodes. Use o formato apropriado (local ou remoto) para as linhas relevantes:
         ```ini
         [Bitcoind]
         # Para node LOCAL (descomente as 3 linhas abaixo e comente as 3 linhas de 'Para node REMOTO'):
@@ -109,27 +109,10 @@ sudo apt install -y crudini curl coreutils bash git
         bitcoind.rpcuser=USUARIO_RPC_PRINCIPAL
         bitcoind.rpcpass=SENHA_RPC_PRINCIPAL
         ```
-    *   **Edite `config/lnd.backup.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin de backup**, usando o mesmo formato (local ou remoto) conforme necessário:
-        ```ini
-        [Bitcoind]
-        bitcoind.active=true
-        # Para node LOCAL:
-        # bitcoind.rpchost=127.0.0.1:8332 
-        # bitcoind.zmqpubrawblock=tcp://127.0.0.1:28332
-        # bitcoind.zmqpubrawtx=tcp://127.0.0.1:28333
-        # Para node REMOTO:
-        bitcoind.rpchost=IP_OU_HOSTNAME_DO_NODE_BACKUP:PORTA_RPC_BACKUP
-        bitcoind.zmqpubrawblock=tcp://IP_OU_HOSTNAME_DO_NODE_BACKUP:PORTA_ZMQ_BLOCK
-        bitcoind.zmqpubrawtx=tcp://IP_OU_HOSTNAME_DO_NODE_BACKUP:PORTA_ZMQ_TX
-        # Credenciais (sempre necessárias):
-        bitcoind.rpcuser=USUARIO_RPC_BACKUP
-        bitcoind.rpcpass=SENHA_RPC_BACKUP
-        ```
-    *   **IMPORTANTE:** Não versione esses arquivos (`lnd.principal.conf`, `lnd.backup.conf`) no Git, pois eles contêm suas configurações específicas e potencialmente credenciais. O `.gitignore` já está configurado para isso.
+    *   **Edite `config/lnd.backup.conf`:** Modifique **APENAS** a seção `[Bitcoind]` para apontar para o seu **node Bitcoin de backup**, usando o mesmo formato (local ou remoto) conforme necessário:so.
 
 7.  **Instale os Serviços Systemd:**
-    *   **Ajuste o Caminho (se necessário):** O arquivo `systemd/bitcoin-fallback-check.service` assume que o projeto está em `/home/admin/lnd-bitcoin_fallback_project`. Se você clonou em outro local, **edite a linha `ExecStart=`** no arquivo `.service` para apontar para o caminho correto do script `bin/bitcoin_fallback.sh`.
-    *   **Crie o arquivo do serviço:**
+    *   **Crie o arquivo do Serviço:**
         ```bash
         sudo nano /etc/systemd/system/bitcoin-fallback-check.service
         ```
@@ -141,9 +124,10 @@ sudo apt install -y crudini curl coreutils bash git
 
         [Service]
         Type=oneshot
+	# Informe o caminho correto para o script na linha abaixo
         ExecStart=/home/admin/lnd-bitcoin_fallback/bin/bitcoin_fallback.sh
-        ```    
-    *   **Crie o arquivo do timer:**
+        ```
+    *   **Crie o arquivo do serviço:**
         ```bash
         sudo nano /etc/systemd/system/bitcoin-fallback-check.timer
         ```
