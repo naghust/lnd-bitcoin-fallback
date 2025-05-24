@@ -1,0 +1,22 @@
+[General]
+# Diretório de dados do LND (onde lnd.conf está e o log será escrito)
+LND_DIR = /data/lnd
+
+[bitcoin_fallback]
+# Configuração para testar a conexão com o NODE BITCOIN PRINCIPAL
+# Se LOCAL: BITCOIN_RPC_HOST=127.0.0.1
+# Se REMOTO: BITCOIN_RPC_HOST=IP_OU_HOSTNAME_DO_NODE_PRINCIPAL
+BITCOIN_RPC_HOST=127.0.0.1
+
+# Porta RPC do node principal (padrão: 8332 mainnet, 18332 testnet)
+BITCOIN_RPC_PORT=8332
+
+# Credenciais RPC do node principal
+BITCOIN_RPC_USER=seu_usuario_rpc
+BITCOIN_RPC_PASS=sua_senha_rpc
+
+[telegram]
+# Coloque true se quiser receber mensagens de alerta via Telegram
+enabled = false
+token = SEU_TOKEN_AQUI
+chat_id = SEU_CHAT_ID_AQUI

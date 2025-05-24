@@ -1,0 +1,7 @@
+[Unit]
+Description=Bitcoin Fallback Check
+After=bitcoind.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/admin/lnd-bitcoin_fallback/bin/bitcoin_fallback.sh

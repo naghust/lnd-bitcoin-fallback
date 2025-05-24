@@ -1,0 +1,31 @@
+# Arquivos de configuração específicos do ambiente (NÃO VERSIONAR!)
+config/config.ini
+config/lnd.principal.conf
+config/lnd.backup.conf
+
+# Arquivo de estado gerado pelo script
+config/.fallback_state
+
+# Arquivos de log
+*.log
+
+# Arquivos temporários ou de backup comuns
+*~
+*.bak
+*.swp
+
+# Arquivos específicos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Diretórios de dependências (se aplicável no futuro)
+# vendor/
+# node_modules/
+
+# Arquivos de ambiente Python (se aplicável no futuro)
+# .venv/
+# venv/
+# ENV/
+# env/
+# __pycache__/
+# *.pyc
