@@ -99,7 +99,6 @@ check_bitcoin_connection() {
     if echo "$response" | grep -q '"result"'; then
         return 0
     else
-        log_error "Falha ao conectar/comunicar com Bitcoin Core principal via curl (timeout, erro de conexão/auth ou resposta RPC inválida)."
         return 1
     fi
 }
